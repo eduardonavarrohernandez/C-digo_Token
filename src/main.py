@@ -9,6 +9,7 @@ from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
 from models import db, User
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, create_access_token
 #from models import Person
 
 app = Flask(__name__)
@@ -19,6 +20,9 @@ MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
 setup_admin(app)
+
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY')
+jwt = JWTManager(app)
 
 # Handle/serialize errors like a JSON object
 @app.errorhandler(APIException)
@@ -38,6 +42,20 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.json.get("email")
+    password = request.json.get("password")
+
+
+    user = User.query.filter_by(email=email, password=password).first()
+    if user is None: 
+        return jsonify({"message": "username or password is bad"})
+
+    access_token = create_access_token(identity=user.id)
+    return jsonify({"token": access_token})
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
